@@ -1,0 +1,8 @@
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.csproj.AssemblyReference.cache
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/rpswa.dswa.cache.json
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.GeneratedMSBuildEditorConfig.editorconfig
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.AssemblyInfoInputs.cache
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.AssemblyInfo.cs
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.csproj.CoreCompileInputs.cache
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.MvcApplicationPartsAssemblyInfo.cs
+/Users/jpedrolopesz/Arsenal/Areco/backend/ProductStore/ProductStore.API/obj/Debug/net10.0/ProductStore.API.MvcApplicationPartsAssemblyInfo.cache
