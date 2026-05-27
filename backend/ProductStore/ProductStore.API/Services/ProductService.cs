@@ -1,13 +1,14 @@
-using Microsoft.EntityFrameworkCore;   // fix: was "EntifyFrameworkCore"
+using Microsoft.EntityFrameworkCore;
 using ProductStore.API.Data;
 using ProductStore.API.DTOs;
 using ProductStore.API.Models;
+using System.Text;
 
 namespace ProductStore.API.Services;
 
 public class ProductService : IProductService
 {
-    private readonly AppDbContext _db;  // fix: was "db"
+    private readonly AppDbContext _db;
     private readonly ILogger<ProductService> _logger;
 
     private const string ElectronicsCategory = "Eletrônicos";
@@ -46,7 +47,7 @@ public class ProductService : IProductService
         };
     }
 
-    public async Task<ProductResponseDto?> GetByIdAsync(int id)  // fix: was "Tasks<>"
+    public async Task<ProductResponseDto?> GetByIdAsync(int id)
     {
         var product = await _db.Products.FindAsync(id);
 
@@ -63,7 +64,7 @@ public class ProductService : IProductService
     {
         ApplyBusinessRules(dto.Category, dto.Price, dto.Stock);
 
-        var skuExists = await _db.Products.AnyAsync(p => p.SKU == dto.SKU.Trim().ToUpper());  // fix: "trim" → "Trim"
+        var skuExists = await _db.Products.AnyAsync(p => p.SKU == dto.SKU.Trim().ToUpper());
 
         if (skuExists)
         {
@@ -71,7 +72,7 @@ public class ProductService : IProductService
             throw new InvalidOperationException($"Já existe um produto com o SKU '{dto.SKU}'.");
         }
 
-        var product = new Models.Product  // fix: fully qualified to avoid namespace conflict
+        var product = new Models.Product
         {
             Name = dto.Name,
             SKU = dto.SKU.Trim().ToUpper(),
@@ -83,11 +84,11 @@ public class ProductService : IProductService
         };
 
         _db.Products.Add(product);
-        await _db.SaveChangesAsync();  // fix: was "SaveChagesAsync"
+        await _db.SaveChangesAsync();
 
         _logger.LogInformation(  // fix: was "LongInFormation"
             "Produto criado - ID: {Id} | Nome: {Name} | SKU: {SKU} | Categoria: {Category} | Preço: {Price} | Estoque: {Stock}",
-            product.Id, product.Name, product.SKU, product.Category, product.Price, product.Stock);  // fix: "id"→"Id", "name"→"Name", missing braces on Stock
+            product.Id, product.Name, product.SKU, product.Category, product.Price, product.Stock);
 
         return MapToResponse(product);
     }
@@ -107,40 +108,43 @@ public class ProductService : IProductService
 
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation(  // fix: was "LongInFormation"
+        _logger.LogInformation(
             "Produto atualizado - ID: {Id} | Nome: {Name} | SKU: {SKU} | Categoria: {Category} | Preço: {Price} | Estoque: {Stock}",
-            product.Id, product.Name, product.SKU, product.Category, product.Price, product.Stock);  // fix: "id"→"Id", "name"→"Name"
+            product.Id, product.Name, product.SKU, product.Category, product.Price, product.Stock);
 
         return MapToResponse(product);
     }
 
     public async Task DeleteAsync(int id)
     {
-        var product = await _db.Products.FindAsync(id)  // fix: was "_db.Produts"
+        var product = await _db.Products.FindAsync(id)
             ?? throw new KeyNotFoundException($"Produto com ID {id} nao encontrado.");
 
         _db.Products.Remove(product);
         await _db.SaveChangesAsync();
 
-        _logger.LogInformation(  // fix: was "LongInFormation"
+        _logger.LogInformation(
             "Produto removido - ID: {Id} | Nome: {Name} | SKU: {SKU}",
-            product.Id, product.Name, product.SKU);  // fix: "id"→"Id", "name"→"Name"
+            product.Id, product.Name, product.SKU);
     }
 
     private static void ApplyBusinessRules(string category, decimal price, int stock)
     {
         if (stock < 0)
-            throw new ArgumentException("Estoque nao pode ser interior a zero");
+            throw new ArgumentException("Estoque nao pode ser inferior a zero");
 
-        if (category.Equals(ElectronicsCategory, StringComparison.OrdinalIgnoreCase)  // fix: was "categoty"
+        var normalizedCategory = category.Trim().Normalize(NormalizationForm.FormC);
+        var normalizedElectronics = ElectronicsCategory.Normalize(NormalizationForm.FormC);
+
+        if (normalizedCategory.Equals(normalizedElectronics, StringComparison.OrdinalIgnoreCase)
             && price < ElectronicsMinPrice)
             throw new ArgumentException(
                 $"Produtos da categoria '{ElectronicsCategory}' devem ter o preço mínimo de R$ {ElectronicsMinPrice:F2}.");
     }
 
-    private static ProductResponseDto MapToResponse(Models.Product p) => new()  // fix: "Models.Product" to avoid namespace conflict
+    private static ProductResponseDto MapToResponse(Models.Product p) => new()
     {
-        Id = p.Id,       // fix: was lowercase "id"
+        Id = p.Id,
         Name = p.Name,
         SKU = p.SKU,
         Category = p.Category,
