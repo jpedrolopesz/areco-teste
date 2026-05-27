@@ -24,6 +24,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.PropertyNamingPolicy =
+            System.Text.Json.JsonNamingPolicy.CamelCase;
+    });
+
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
 
@@ -32,15 +39,15 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddCors(options =>
     options.AddDefaultPolicy(policy =>
         policy
-            .WithOrigins("http://localhost:5173", "http://localhost:3000")
+            .WithOrigins("http://localhost:5173", "http://localhost:3000", "http://192.168.0.34:3000")
             .AllowAnyHeader()
+            .AllowAnyOrigin()
             .AllowAnyMethod()
     )
 );
 
 
 var app = builder.Build();
-app.UseCors();
 
 try
 {

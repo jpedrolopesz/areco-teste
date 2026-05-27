@@ -6,17 +6,21 @@ import { api } from "../lib/api";
 import { productSchema } from "@/lib/schema";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+
+type ModalMode = "create" | "edit";
 
 export default function ProductsPage() {
   const qc = useQueryClient();
   const [page, setPage] = useState(1);
-  const [pageSize] = useState(10);
+  const [modalMode, setModalMode] = useState<ModalMode | null>(null);
   const [editing, setEditing] = useState<Product | null>(null);
-  const [creating, setCreating] = useState(false);
+
+  const PAGE_SIZE = 10;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["products", page, pageSize],
-    queryFn: () => api.list(page, pageSize),
+    queryKey: ["products", page],
+    queryFn: () => api.list(page, PAGE_SIZE),
   });
 
   const {
@@ -24,17 +28,21 @@ export default function ProductsPage() {
     handleSubmit,
     reset,
     formState: { errors },
-  } = useForm<ProductFormData>({
-    resolver: zodResolver(productSchema),
-  });
+  } = useForm<ProductFormData>({ resolver: zodResolver(productSchema) });
+
+  const getApiErrorMessage = (err: unknown): string => {
+    if (err instanceof Error) return err.message;
+    return "Ocorreu um erro inesperado.";
+  };
 
   const createMutation = useMutation({
     mutationFn: (data: ProductFormData) => api.create(data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
-      setCreating(false);
-      reset();
+      closeModal();
+      toast.success("Produto criado com sucesso.");
     },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
   });
 
   const updateMutation = useMutation({
@@ -42,17 +50,26 @@ export default function ProductsPage() {
       api.update(id, data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
-      setEditing(null);
-      reset();
+      closeModal();
+      toast.success("Produto atualizado.");
     },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
   });
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => api.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["products"] });
+      toast.success("Produto excluído.");
     },
+    onError: (err) => toast.error(getApiErrorMessage(err)),
   });
+
+  const openCreate = () => {
+    reset();
+    setEditing(null);
+    setModalMode("create");
+  };
 
   const openEdit = (product: Product) => {
     setEditing(product);
@@ -63,10 +80,11 @@ export default function ProductsPage() {
       price: product.price,
       stock: product.stock,
     });
+    setModalMode("edit");
   };
 
   const closeModal = () => {
-    setCreating(false);
+    setModalMode(null);
     setEditing(null);
     reset();
   };
@@ -79,32 +97,33 @@ export default function ProductsPage() {
     }
   };
 
-  const isModalOpen = creating || editing !== null;
   const totalPages = data?.totalPages ?? 1;
+  const isPending = createMutation.isPending || updateMutation.isPending;
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-semibold">Produtos</h1>
-          <p className="text-sm text-gray-500">Gestão de estoque e catálogo</p>
+          <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            Produtos
+          </h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            Gestão de estoque e catálogo
+          </p>
         </div>
         <button
-          onClick={() => {
-            setCreating(true);
-            reset();
-          }}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+          onClick={openCreate}
+          className="flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-800"
         >
           + Novo Produto
         </button>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-xl overflow-hidden">
+      {/* Tabela */}
+      <div className="border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-gray-50 text-gray-500 text-xs uppercase tracking-wide">
+          <thead className="bg-gray-50 dark:bg-gray-800 text-gray-500 dark:text-gray-400 text-xs uppercase tracking-wide">
             <tr>
               {["Nome", "SKU", "Categoria", "Preço", "Estoque", ""].map((h) => (
                 <th key={h} className="px-4 py-3 text-left font-medium">
@@ -113,70 +132,79 @@ export default function ProductsPage() {
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y">
-            {isLoading && (
+          <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+            {isLoading ? (
               <tr>
-                <td colSpan={6} className="text-center py-12 text-gray-400">
+                <td
+                  colSpan={6}
+                  className="text-center py-12 text-gray-400 dark:text-gray-500"
+                >
                   Carregando...
                 </td>
               </tr>
+            ) : (
+              data?.data.map((p) => (
+                <tr
+                  key={p.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-800/50 bg-white dark:bg-gray-900"
+                >
+                  <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100">
+                    {p.name}
+                  </td>
+                  <td className="px-4 py-3 font-mono text-gray-500 dark:text-gray-400 text-xs">
+                    {p.sku}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span className="font-mono text-blue-500 dark:text-blue-400 text-xs bg-blue-50 dark:bg-blue-900/40 px-2 py-0.5 rounded">
+                      {p.category}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                    {p.price.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    })}
+                  </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={
+                        p.stock === 0
+                          ? "text-red-500"
+                          : p.stock <= 10
+                            ? "text-yellow-500"
+                            : "text-gray-700 dark:text-gray-300"
+                      }
+                    >
+                      {p.stock}
+                    </span>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => openEdit(p)}
+                        className="text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xs px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={() => deleteMutation.mutate(p.id)}
+                        disabled={deleteMutation.isPending}
+                        className="text-gray-400 hover:text-red-500 text-xs px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-40"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
             )}
-            {data?.data.map((p) => (
-              <tr key={p.id} className="hover:bg-gray-50">
-                <td className="px-4 py-3 font-medium">{p.name}</td>
-                <td className="px-4 py-3 font-mono text-gray-500 text-xs">
-                  {p.sku}
-                </td>
-                <td className="px-4 py-3">
-                  <span className="font-mono text-blue-500 text-xs bg-blue-50 px-2 py-0.5 rounded">
-                    {p.category}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  {p.price.toLocaleString("pt-BR", {
-                    style: "currency",
-                    currency: "BRL",
-                  })}
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={
-                      p.stock === 0
-                        ? "text-red-500"
-                        : p.stock <= 10
-                          ? "text-yellow-500"
-                          : ""
-                    }
-                  >
-                    {p.stock}
-                  </span>
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openEdit(p)}
-                      className="text-gray-400 hover:text-gray-700 text-xs px-2 py-1 rounded hover:bg-gray-100"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      onClick={() => deleteMutation.mutate(p.id)}
-                      disabled={deleteMutation.isPending}
-                      className="text-gray-400 hover:text-red-500 text-xs px-2 py-1 rounded hover:bg-red-50"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination */}
-      {data && (
-        <div className="flex items-center justify-between mt-4 text-sm text-gray-500">
+      {/* Paginação */}
+      {data && totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 text-sm text-gray-500 dark:text-gray-400">
           <span>
             {data.totalCount} produto{data.totalCount !== 1 ? "s" : ""} · página{" "}
             {page} de {totalPages}
@@ -185,7 +213,7 @@ export default function ProductsPage() {
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
+              className="px-3 py-1 rounded border border-gray-200 dark:border-gray-700 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               ‹ Anterior
             </button>
@@ -195,8 +223,8 @@ export default function ProductsPage() {
                 onClick={() => setPage(n)}
                 className={`px-3 py-1 rounded border ${
                   page === n
-                    ? "border-blue-300 bg-blue-50 text-blue-600"
-                    : "border-gray-200 hover:bg-gray-50"
+                    ? "border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400"
+                    : "border-gray-200 dark:border-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 }`}
               >
                 {n}
@@ -205,7 +233,7 @@ export default function ProductsPage() {
             <button
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page === totalPages}
-              className="px-3 py-1 rounded border border-gray-200 disabled:opacity-40 hover:bg-gray-50"
+              className="px-3 py-1 rounded border border-gray-200 dark:border-gray-700 dark:text-gray-300 disabled:opacity-40 hover:bg-gray-50 dark:hover:bg-gray-800"
             >
               Próxima ›
             </button>
@@ -213,102 +241,97 @@ export default function ProductsPage() {
         </div>
       )}
 
-      {/* Modal (criar / editar) */}
-      {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <h2 className="text-base font-semibold mb-4">
-              {editing ? "Editar Produto" : "Novo Produto"}
+      {/* Modal */}
+      {modalMode && (
+        <div
+          className="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-50"
+          onClick={(e) => e.target === e.currentTarget && closeModal()}
+        >
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-base font-semibold mb-4 text-gray-900 dark:text-gray-100">
+              {modalMode === "edit" ? "Editar Produto" : "Novo Produto"}
             </h2>
+
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Nome</label>
-                <input
-                  {...register("name")}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
-                {errors.name && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.name.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">SKU</label>
-                <input
-                  {...register("sku")}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
-                {errors.sku && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.sku.message}
-                  </p>
-                )}
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">
-                  Categoria
-                </label>
-                <input
-                  {...register("category")}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                />
-              </div>
+              <Field label="Nome" error={errors.name?.message}>
+                <input {...register("name")} className={inputCls} />
+              </Field>
+
+              <Field label="SKU" error={errors.sku?.message}>
+                <input {...register("sku")} className={inputCls} />
+              </Field>
+
+              <Field label="Categoria">
+                <input {...register("category")} className={inputCls} />
+              </Field>
+
               <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Preço (R$)
-                  </label>
+                <Field label="Preço (R$)" error={errors.price?.message}>
                   <input
                     {...register("price")}
                     type="number"
                     step="0.01"
-                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    className={inputCls}
                   />
-                  {errors.price && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.price.message}
-                    </p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-500 mb-1">
-                    Estoque
-                  </label>
+                </Field>
+                <Field label="Estoque" error={errors.stock?.message}>
                   <input
                     {...register("stock")}
                     type="number"
-                    className="w-full border rounded-lg px-3 py-2 text-sm"
+                    className={inputCls}
                   />
-                  {errors.stock && (
-                    <p className="text-red-500 text-xs mt-1">
-                      {errors.stock.message}
-                    </p>
-                  )}
-                </div>
+                </Field>
               </div>
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
                   onClick={closeModal}
-                  className="px-4 py-2 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
+                  className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
-                  disabled={
-                    createMutation.isPending || updateMutation.isPending
-                  }
-                  className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-60"
+                  disabled={isPending}
+                  className="px-4 py-2 text-sm rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium disabled:opacity-60"
                 >
-                  {editing ? "Salvar" : "Criar Produto"}
+                  {isPending
+                    ? "Salvando..."
+                    : modalMode === "edit"
+                      ? "Salvar"
+                      : "Criar Produto"}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+const inputCls =
+  "w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:focus:ring-blue-700";
+
+function Field({
+  label,
+  error,
+  children,
+}: {
+  label: string;
+  error?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <label className="block text-xs text-gray-500 dark:text-gray-400 mb-1">
+        {label}
+      </label>
+      {children}
+      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
     </div>
   );
 }

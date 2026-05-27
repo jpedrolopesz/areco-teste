@@ -10,7 +10,7 @@ public class ProductService : IProductService
     private readonly AppDbContext _db;  // fix: was "db"
     private readonly ILogger<ProductService> _logger;
 
-    private const string ElectronicsCategory = "Eletronicos";
+    private const string ElectronicsCategory = "Eletrônicos";
     private const decimal ElectronicsMinPrice = 50m;
 
     public ProductService(AppDbContext db, ILogger<ProductService> logger)
