@@ -1,8 +1,12 @@
-using Microsoft.EntityFreameworkCore;
+using Microsoft.EntityFrameworkCore;
 using ProductStore.API.Data;
 using ProductStore.API.Middleware;
 using ProductStore.API.Services;
 using Serilog;
+
+Log.Logger = new LoggerConfiguration()
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -20,24 +24,30 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-builder.Services.AddDbContext<AppDbContext>(options => options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 builder.Services.AddScoped<IProductService, ProductService>();
 
 builder.Services.AddCors(options =>
-    policy
-        .WithOrigins("http:/localhost:5173", "http://localhost:3000")
-        .AllowAnyHeader()
-        .AllowAnyMethod()
+    options.AddDefaultPolicy(policy =>
+        policy
+            .WithOrigins("http://localhost:5173", "http://localhost:3000")
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+    )
 );
 
+
+var app = builder.Build();
+app.UseCors();
 
 try
 {
     using var scope = app.Services.CreateScope();
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-
-    db.Database.Migration();
-    Log.Information("Migrations aplicada com sucesso");
+    db.Database.Migrate();
+    Log.Information("Migrations aplicadas com sucesso");
 }
 catch (Exception ex)
 {
@@ -45,7 +55,17 @@ catch (Exception ex)
     throw;
 }
 
-Log.Information("ProductStore API Iniciada - ambiente: {Env}",
-app.Environment.EnvironmentName);
+app.UseMiddleware<ExceptionMiddleware>();
+
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
+}
+
+app.UseCors();
+app.MapControllers();
+
+Log.Information("ProductStore API Iniciada - ambiente: {Env}", app.Environment.EnvironmentName);
 
 app.Run();

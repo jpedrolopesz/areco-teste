@@ -8,7 +8,7 @@ namespace ProductStore.API.Controllers;
 [Route("api/[controller]")]
 public class ProductsController : ControllerBase
 {
-    private readonly IProductService service;
+    private readonly IProductService _service;
 
     public ProductsController(IProductService service)
     {
@@ -16,7 +16,7 @@ public class ProductsController : ControllerBase
     }
 
     [HttpGet]
-    public async Tasks<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
+    public async Task<IActionResult> GetAll([FromQuery] int page = 1, [FromQuery] int pageSize = 10)
     {
         var result = await _service.GetAllAsync(page, pageSize);
         return Ok(result);
@@ -37,17 +37,17 @@ public class ProductsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
     }
 
-    [HttpPut("{id")]
+    [HttpPut("{id}")]
     public async Task<IActionResult> Update(int id, [FromBody] UpdateProductDto dto)
     {
         var updated = await _service.UpdateAsync(id, dto);
         return Ok(updated);
     }
+
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
         await _service.DeleteAsync(id);
         return NoContent();
     }
-
 }
